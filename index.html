@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Renderforge · Image to 3D</title>
+    <meta name="description" content="Turn a single photo into a 3D model you can rotate, inspect and download." />
+    <meta name="theme-color" content="#ffffff" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b7a75'/%3E%3Cpath d='M16 6l8 4.5v9L16 24l-8-4.5v-9z' fill='none' stroke='white' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Renderforge home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>
+        </span>
+        <span class="brand-name">Renderforge</span>
+      </a>
+      <div class="topbar-right">
+        <div id="user-chip" class="user-chip" hidden>
+          <span class="avatar" id="user-avatar" aria-hidden="true"></span>
+          <span id="user-email" class="user-email"></span>
+          <button id="logout-btn" class="btn quiet sm" type="button">Sign out</button>
+        </div>
+        <button id="signin-btn" class="btn primary sm" type="button">Sign in</button>
+      </div>
+    </header>
+
+    <main class="app">
+      <aside class="panel" aria-label="Create a model">
+        <section class="section">
+          <h2 class="section-title">Source image</h2>
+          <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Choose an image to upload">
+            <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp" hidden />
+            <div id="dz-empty" class="dz-empty">
+              <span class="dz-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 16V5"/><path d="M7 9l5-5 5 5"/><path d="M5 20h14"/></svg>
+              </span>
+              <strong>Drop a photo or click to browse</strong>
+              <span class="muted small">PNG, JPG or WEBP, up to 10 MB. You can also paste.</span>
+            </div>
+            <div id="dz-preview" class="dz-preview" hidden>
+              <img id="preview-img" alt="Selected image preview" />
+              <div class="dz-meta">
+                <span id="file-name" class="file-name"></span>
+                <span id="file-meta" class="muted small"></span>
+                <span class="muted small">Click to replace</span>
+              </div>
+              <button id="remove-file" class="icon-btn" type="button" aria-label="Remove image">
+                <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+              </button>
+            </div>
+          </div>
+          <p class="tip">Works best with one object, centred, in sharp focus and even light, shot from a slight angle.</p>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Output</h2>
+          <div class="field">
+            <span class="label" id="quality-label">Detail</span>
+            <div class="segmented" id="quality-group" role="radiogroup" aria-labelledby="quality-label">
+              <button type="button" role="radio" data-value="low">Fast</button>
+              <button type="button" role="radio" data-value="medium">Balanced</button>
+              <button type="button" role="radio" data-value="high">Detailed</button>
+            </div>
+            <p class="hint" id="quality-hint"></p>
+          </div>
+          <div class="field">
+            <span class="label" id="format-label">File format</span>
+            <div class="segmented" id="format-group" role="radiogroup" aria-labelledby="format-label">
+              <button type="button" role="radio" data-value="glb">GLB</button>
+              <button type="button" role="radio" data-value="obj">OBJ</button>
+            </div>
+            <p class="hint">GLB keeps vertex colours and opens in most 3D tools. OBJ is geometry only.</p>
+          </div>
+        </section>
+
+        <div class="section action">
+          <button id="generate-btn" class="btn primary lg" type="button">
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="generate-label">Generate model</span>
+          </button>
+        </div>
+
+        <section class="section history">
+          <div class="section-head">
+            <h2 class="section-title">History</h2>
+            <button id="refresh-history" class="icon-btn" type="button" aria-label="Refresh history" title="Refresh">
+              <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            </button>
+          </div>
+          <ul id="history-list" class="history-list"></ul>
+          <p id="history-empty" class="muted small">Sign in to see your saved models.</p>
+        </section>
+      </aside>
+
+      <section class="workspace" aria-label="3D viewer">
+        <div class="toolstrip" role="toolbar" aria-label="Viewer tools">
+          <div class="segmented compact" id="mode-group" role="radiogroup" aria-label="Shading">
+            <button type="button" role="radio" data-mode="shaded" title="Original colours">Shaded</button>
+            <button type="button" role="radio" data-mode="clay" title="Neutral clay, ignores colour">Clay</button>
+            <button type="button" role="radio" data-mode="normals" title="Surface normals">Normals</button>
+          </div>
+          <span class="divider" aria-hidden="true"></span>
+          <div class="tool-group">
+            <button id="btn-wire" type="button" class="tool" aria-pressed="false" title="Wireframe (W)" aria-label="Wireframe">
+              <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>
+            </button>
+            <button id="btn-grid" type="button" class="tool" aria-pressed="true" title="Grid (G)" aria-label="Grid">
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/><path d="M4 12h16M12 4v16"/></svg>
+            </button>
+            <button id="btn-rotate" type="button" class="tool" aria-pressed="false" title="Auto-rotate (A)" aria-label="Auto-rotate">
+              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+            </button>
+          </div>
+          <span class="divider" aria-hidden="true"></span>
+          <div class="tool-group">
+            <button id="btn-reset" type="button" class="tool" title="Reset view (R)" aria-label="Reset view">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+            </button>
+            <button id="btn-orient" type="button" class="tool" title="Rotate the model 90° if it is lying down" aria-label="Rotate model 90 degrees">
+              <svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
+            </button>
+          </div>
+          <span class="spacer"></span>
+          <div class="tool-group">
+            <button id="btn-shot" type="button" class="tool" title="Save a screenshot (transparent PNG)" aria-label="Save screenshot">
+              <svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            </button>
+            <button id="btn-open" type="button" class="tool" title="Open a local GLB or OBJ file" aria-label="Open a local model">
+              <svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg>
+            </button>
+            <input id="open-input" type="file" accept=".glb,.obj" hidden />
+          </div>
+          <button id="btn-download" type="button" class="btn primary sm" disabled>
+            <svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
+            <span id="download-label">Download</span>
+          </button>
+        </div>
+
+        <div id="viewer" class="viewer bg-studio">
+          <div id="overlay" class="overlay">
+            <div id="ov-idle" class="ov-card" hidden>
+              <h3>Your model appears here</h3>
+              <p class="muted">Add a photo and press Generate. When it finishes you can turn it, inspect it and download it.</p>
+            </div>
+
+            <div id="ov-working" class="ov-card" hidden>
+              <h3 id="ov-title">Working…</h3>
+              <div class="bar" aria-hidden="true"><span></span></div>
+              <ol class="stepper" id="stepper">
+                <li data-step="0">Upload</li>
+                <li data-step="1">Queue</li>
+                <li data-step="2">Generate</li>
+                <li data-step="3">Load</li>
+              </ol>
+              <p class="muted small" id="ov-elapsed" aria-live="polite">0s</p>
+            </div>
+
+            <div id="ov-error" class="ov-card" hidden>
+              <h3>Couldn't create the model</h3>
+              <p id="ov-error-text" class="error-text" role="alert"></p>
+              <button id="retry-btn" class="btn primary sm" type="button">Try again</button>
+            </div>
+
+            <div id="ov-nogl" class="ov-card" hidden>
+              <h3>3D preview unavailable</h3>
+              <p class="muted">WebGL is turned off in this browser, so the viewer can't start. Turn on hardware acceleration and reload.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="statusbar">
+          <div id="stats" class="stats" hidden>
+            <span><b id="stat-verts">0</b> vertices</span>
+            <span><b id="stat-tris">0</b> triangles</span>
+            <span id="stat-colors">Vertex colours</span>
+          </div>
+          <span class="hint-line">Drag to rotate · scroll to zoom · right-drag to pan</span>
+          <span class="spacer"></span>
+          <div class="scene" aria-label="Scene settings">
+            <div class="swatches" id="bg-group" role="radiogroup" aria-label="Background">
+              <button type="button" role="radio" data-bg="studio" class="swatch s-studio" title="Studio grey" aria-label="Studio grey background"></button>
+              <button type="button" role="radio" data-bg="light" class="swatch s-light" title="Paper" aria-label="Paper background"></button>
+              <button type="button" role="radio" data-bg="graphite" class="swatch s-graphite" title="Graphite" aria-label="Graphite background"></button>
+              <button type="button" role="radio" data-bg="black" class="swatch s-black" title="Black" aria-label="Black background"></button>
+            </div>
+            <label class="exposure">
+              <span>Light</span>
+              <input id="exposure" type="range" min="0.4" max="2" step="0.05" value="1" aria-label="Light level" />
+            </label>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <dialog id="auth-dialog" class="dialog" aria-labelledby="auth-title">
+      <form id="auth-form" method="dialog" class="auth-form" novalidate>
+        <div class="dialog-head">
+          <h2 id="auth-title">Your Renderforge account</h2>
+          <button id="auth-close" class="icon-btn" type="button" aria-label="Close">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="segmented" id="auth-tabs" role="tablist">
+          <button type="button" role="tab" data-tab="login">Sign in</button>
+          <button type="button" role="tab" data-tab="signup">Create account</button>
+        </div>
+        <label class="input-row" id="name-row" hidden>
+          <span>Name <span class="muted">(optional)</span></span>
+          <input id="auth-name" type="text" autocomplete="name" maxlength="120" />
+        </label>
+        <label class="input-row">
+          <span>Email</span>
+          <input id="auth-email" type="email" autocomplete="email" required />
+        </label>
+        <label class="input-row">
+          <span>Password</span>
+          <input id="auth-password" type="password" autocomplete="current-password" minlength="8" maxlength="72" required />
+        </label>
+        <p id="auth-error" class="error-text" role="alert" hidden></p>
+        <button id="auth-submit" class="btn primary lg" type="submit">Sign in</button>
+      </form>
+    </dialog>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
